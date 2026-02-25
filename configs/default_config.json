@@ -1,0 +1,42 @@
+{
+  "dataset": {
+    "workbook_path": "data/PFR-CSTR-cascade_Calculation-macro.xlsm",
+    "n_runs": 25000,
+    "grid_length": 128,
+    "random_seed": 42,
+    "save_dir": "./data",
+    "use_ode_solver": true,
+    "mechanism_classes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+  },
+  "preprocessing": {
+    "train_ratio": 0.7,
+    "val_ratio": 0.15,
+    "test_ratio": 0.15,
+    "normalize": true
+  },
+  "training": {
+    "model_type": "rescnn",
+    "batch_size": 64,
+    "epochs": 200,
+    "learning_rate": 0.0003,
+    "weight_decay": 0.001,
+    "dropout": 0.25,
+    "device": "cpu"
+  },
+  "model": {
+    "num_features": 16,
+    "num_classes": 20,
+    "seq_length": 128,
+    "hidden_channels": [64, 128, 256],
+    "fc_hidden": 256
+  },
+  "prediction": {
+    "threshold": 0.05,
+    "device": "cpu"
+  },
+  "reactor": {
+    "P": 100000,
+    "V_total": 1.0,
+    "n_cstr_stages": 50
+  }
+}
