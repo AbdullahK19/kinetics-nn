@@ -1,0 +1,28 @@
+{
+  "n_runs": 50,
+  "grid_length": 128,
+  "num_features": 6,
+  "num_classes": 5,
+  "class_distribution": {
+    "0": 7,
+    "1": 8,
+    "2": 10,
+    "3": 14,
+    "4": 11
+  },
+  "mechanism_classes": {
+    "0": "A + B -> C",
+    "1": "2A -> D",
+    "2": "A + B -> C ; 2A -> D",
+    "3": "A + B -> C -> D",
+    "4": "2A -> C -> D"
+  },
+  "feature_names": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "n_total",
+    "reactor_type"
+  ]
+}

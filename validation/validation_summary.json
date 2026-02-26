@@ -1,7 +1,7 @@
 [
   {
-    "test": "Class 0: A+B->C",
-    "class_id": 0,
+    "test": "A+B->C (new class 4)",
+    "class_id": 4,
     "errors": {
       "A": {
         "max_abs": 3.0050922053659335e-05,
@@ -22,8 +22,8 @@
     }
   },
   {
-    "test": "Class 1: 2A->D",
-    "class_id": 1,
+    "test": "2A->D (new class 7)",
+    "class_id": 7,
     "errors": {
       "A": {
         "max_abs": 0.00024112028869285873,
@@ -44,8 +44,8 @@
     }
   },
   {
-    "test": "Class 2: parallel",
-    "class_id": 2,
+    "test": "A+B->C ; 2A->D (new class 14)",
+    "class_id": 14,
     "errors": {
       "A": {
         "max_abs": 0.00012657564648330122,

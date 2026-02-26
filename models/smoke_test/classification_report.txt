@@ -1,0 +1,11 @@
+                      precision    recall  f1-score   support
+
+          A + B -> C       0.00      0.00      0.00       1.0
+             2A -> D       0.00      0.00      0.00       2.0
+A + B -> C ; 2A -> D       0.00      0.00      0.00       1.0
+     A + B -> C -> D       0.00      0.00      0.00       2.0
+        2A -> C -> D       0.00      0.00      0.00       1.0
+
+            accuracy                           0.00       7.0
+           macro avg       0.00      0.00      0.00       7.0
+        weighted avg       0.00      0.00      0.00       7.0

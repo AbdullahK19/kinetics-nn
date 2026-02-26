@@ -1,0 +1,12 @@
+{
+  "train_ratio": 0.7,
+  "val_ratio": 0.15,
+  "test_ratio": 0.15,
+  "random_state": 99,
+  "normalize": true,
+  "train_size": 35,
+  "val_size": 7,
+  "test_size": 8,
+  "num_features": 6,
+  "seq_length": 128
+}

@@ -1,0 +1,18 @@
+{
+  "data_dir": "./data/smoke_test",
+  "model_type": "cnn",
+  "batch_size": 8,
+  "epochs": 5,
+  "lr": 0.001,
+  "weight_decay": 1e-05,
+  "dropout": 0.3,
+  "save_dir": "./models/smoke_test",
+  "seed": 99,
+  "device": "cpu",
+  "best_val_acc": 14.285714285714286,
+  "best_epoch": 1,
+  "num_parameters": 49125,
+  "num_classes": 5,
+  "num_features": 6,
+  "grid_length": 128
+}
