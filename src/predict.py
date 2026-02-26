@@ -5,7 +5,7 @@ This module:
 - Loads trained model
 - Accepts reactor parameters and runs ODE simulation
 - Returns ranked mechanism predictions with probabilities
-- Supports configurable confidence threshold (default 5%)
+- Supports configurable confidence threshold (default 0.5%)
 """
 
 import torch

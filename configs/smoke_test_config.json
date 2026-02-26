@@ -31,7 +31,7 @@
     "fc_hidden": 64
   },
   "prediction": {
-    "threshold": 0.05,
+    "threshold": 0.005,
     "device": "cpu"
   },
   "reactor": {
