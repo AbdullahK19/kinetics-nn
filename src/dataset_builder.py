@@ -2,10 +2,10 @@
 Dataset builder for generating labeled training data.
 
 Supports two simulation backends:
-  1. Python ODE solver (default) -- no Excel dependency, supports all 20 mechanisms
+  1. Python ODE solver (default) -- no Excel dependency, supports all 28 mechanisms
   2. Excel workbook via xlwings   -- original backend, classes 0-2 only
 
-See ode_solver.py for the full 20-class mechanism taxonomy.
+See ode_solver.py for the full 28-class mechanism taxonomy.
 """
 
 import numpy as np
@@ -105,6 +105,38 @@ class DatasetBuilder:
             arrhenius_meta[f'Ea_{rc_name}']    = Ea
             arrhenius_meta[f'A_pre_{rc_name}'] = A_pre
             arrhenius_meta[f'k_ref_{rc_name}'] = k_ref
+
+        # Keq constraint for reversible mechanisms (classes 20-25).
+        # Without this, Keq >> 1 gives profiles indistinguishable from irreversible.
+        # k2 is overridden so the equilibrium effect is always visible in the profile.
+        _REVERSIBLE_1ST = {20, 21, 22, 23}   # both directions 1st order
+        _REVERSIBLE_2ND = {24, 25}            # 2nd order forward, 1st order reverse
+        _P_REF_SCALE    = 100_000.0           # Pa — reference for K_eff scaling
+
+        if mechanism_class in _REVERSIBLE_1ST:
+            # Constrain Keq_ref = k1_ref/k2_ref to [0.1, 10] at T_REF
+            k1_ref   = arrhenius_meta['k_ref_k1']
+            Keq_ref  = 10.0 ** np.random.uniform(-1.0, 1.0)
+            k2_ref   = k1_ref / Keq_ref
+            Ea_k2    = np.random.uniform(15_000, 60_000)
+            A_pre_k2 = k2_ref / np.exp(-Ea_k2 / (R_GAS * T_REF))
+            rate_constants['k2'] = arrhenius_k(A_pre_k2, Ea_k2, T)
+            arrhenius_meta.update({
+                'Ea_k2': Ea_k2, 'A_pre_k2': A_pre_k2, 'k_ref_k2': k2_ref,
+            })
+
+        elif mechanism_class in _REVERSIBLE_2ND:
+            # Constrain K_eff = (k1_ref * P_REF) / k2_ref to [0.5, 10]
+            # Lower bound 0.5 ensures ≥10% conversion for bimolecular case
+            k1_ref   = arrhenius_meta['k_ref_k1']
+            K_eff    = 10.0 ** np.random.uniform(-0.3, 1.0)
+            k2_ref   = np.clip(k1_ref * _P_REF_SCALE / K_eff, 1e-6, 1e-4)
+            Ea_k2    = np.random.uniform(15_000, 60_000)
+            A_pre_k2 = k2_ref / np.exp(-Ea_k2 / (R_GAS * T_REF))
+            rate_constants['k2'] = arrhenius_k(A_pre_k2, Ea_k2, T)
+            arrhenius_meta.update({
+                'Ea_k2': Ea_k2, 'A_pre_k2': A_pre_k2, 'k_ref_k2': k2_ref,
+            })
 
         params = {
             'nA0': nA0,

@@ -5,7 +5,7 @@ Provides Python-native simulation of chemical reaction mechanisms,
 replacing the Excel dependency for dataset generation and enabling
 complex/intermediate reaction mechanisms.
 
-20 Mechanism Classes (Groups A-F):
+28 Mechanism Classes (Groups A-I):
 
 Group A — Unimolecular:
     Class  0: A -> C
@@ -38,6 +38,20 @@ Group F — Parallel-Sequential:
     Class 17: A+B -> C -> D ; 2A -> D
     Class 18: 2A -> C -> D ; A+B -> D
     Class 19: A -> C -> D ; B -> D
+
+Group G — Reversible Simple (1st order both ways):
+    Class 20: A <-> C
+    Class 21: A <-> D
+    Class 22: B <-> C
+    Class 23: B <-> D
+
+Group H — Reversible Bimolecular (2nd order forward, 1st order reverse):
+    Class 24: A + B <-> C
+    Class 25: A + B <-> D
+
+Group I — Split Product (one reactant, two simultaneous products):
+    Class 26: A -> C + D
+    Class 27: B -> C + D
 """
 
 import numpy as np
@@ -351,6 +365,69 @@ _mech_19 = Mechanism(
 )
 
 
+# --- Group G: Reversible Simple (1st order both ways) ---
+
+_mech_20 = Mechanism(
+    class_id=20, name="A <-> C", type_label="reversible",
+    stoich_matrix=np.array([[-1, 1], [0, 0], [1, -1], [0, 0]]),
+    rate_expressions=[('k1', [(0, 1)]), ('k2', [(2, 1)])],   # k1·pA / k2·pC
+    rate_constant_ranges={'k1': _RANGE_1ST, 'k2': _RANGE_1ST},
+)
+
+_mech_21 = Mechanism(
+    class_id=21, name="A <-> D", type_label="reversible",
+    stoich_matrix=np.array([[-1, 1], [0, 0], [0, 0], [1, -1]]),
+    rate_expressions=[('k1', [(0, 1)]), ('k2', [(3, 1)])],   # k1·pA / k2·pD
+    rate_constant_ranges={'k1': _RANGE_1ST, 'k2': _RANGE_1ST},
+)
+
+_mech_22 = Mechanism(
+    class_id=22, name="B <-> C", type_label="reversible",
+    stoich_matrix=np.array([[0, 0], [-1, 1], [1, -1], [0, 0]]),
+    rate_expressions=[('k1', [(1, 1)]), ('k2', [(2, 1)])],   # k1·pB / k2·pC
+    rate_constant_ranges={'k1': _RANGE_1ST, 'k2': _RANGE_1ST},
+)
+
+_mech_23 = Mechanism(
+    class_id=23, name="B <-> D", type_label="reversible",
+    stoich_matrix=np.array([[0, 0], [-1, 1], [0, 0], [1, -1]]),
+    rate_expressions=[('k1', [(1, 1)]), ('k2', [(3, 1)])],   # k1·pB / k2·pD
+    rate_constant_ranges={'k1': _RANGE_1ST, 'k2': _RANGE_1ST},
+)
+
+# --- Group H: Reversible Bimolecular (2nd order forward, 1st order reverse) ---
+
+_mech_24 = Mechanism(
+    class_id=24, name="A + B <-> C", type_label="reversible",
+    stoich_matrix=np.array([[-1, 1], [-1, 1], [1, -1], [0, 0]]),
+    rate_expressions=[('k1', [(0, 1), (1, 1)]), ('k2', [(2, 1)])],  # k1·pA·pB / k2·pC
+    rate_constant_ranges={'k1': _RANGE_2ND, 'k2': _RANGE_1ST},
+)
+
+_mech_25 = Mechanism(
+    class_id=25, name="A + B <-> D", type_label="reversible",
+    stoich_matrix=np.array([[-1, 1], [-1, 1], [0, 0], [1, -1]]),
+    rate_expressions=[('k1', [(0, 1), (1, 1)]), ('k2', [(3, 1)])],  # k1·pA·pB / k2·pD
+    rate_constant_ranges={'k1': _RANGE_2ND, 'k2': _RANGE_1ST},
+)
+
+# --- Group I: Split Product (one reactant, two simultaneous products) ---
+
+_mech_26 = Mechanism(
+    class_id=26, name="A -> C + D", type_label="simple",
+    stoich_matrix=np.array([[-1], [0], [1], [1]]),
+    rate_expressions=[('k1', [(0, 1)])],                     # k1·pA
+    rate_constant_ranges={'k1': _RANGE_1ST},
+)
+
+_mech_27 = Mechanism(
+    class_id=27, name="B -> C + D", type_label="simple",
+    stoich_matrix=np.array([[0], [-1], [1], [1]]),
+    rate_expressions=[('k1', [(1, 1)])],                     # k1·pB
+    rate_constant_ranges={'k1': _RANGE_1ST},
+)
+
+
 MECHANISM_REGISTRY: Dict[int, Mechanism] = {
     m.class_id: m for m in [
         _mech_0, _mech_1, _mech_2, _mech_3,
@@ -359,6 +436,9 @@ MECHANISM_REGISTRY: Dict[int, Mechanism] = {
         _mech_10, _mech_11, _mech_12, _mech_13,
         _mech_14, _mech_15, _mech_16,
         _mech_17, _mech_18, _mech_19,
+        _mech_20, _mech_21, _mech_22, _mech_23,
+        _mech_24, _mech_25,
+        _mech_26, _mech_27,
     ]
 }
 
