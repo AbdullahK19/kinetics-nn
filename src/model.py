@@ -328,7 +328,7 @@ class ResConv1DClassifier(nn.Module):
     def __init__(
         self,
         num_features: int = 16,
-        num_classes: int = 20,
+        num_classes: int = 28,
         seq_length: int = 128,
         hidden_channels: Tuple[int, ...] = (64, 128, 256),
         fc_hidden: int = 256,

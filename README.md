@@ -2,7 +2,7 @@
 
 A deep learning pipeline that identifies **which chemical reaction mechanism** is operating inside a reactor, purely from concentration profiles. Feed it reactor outputs; it tells you the mechanism.
 
-**94.49% validation accuracy** across 20 mechanism classes, including complex parallel-sequential reactions.
+**92.24% validation accuracy** across 28 mechanism classes, covering unimolecular, bimolecular, sequential, parallel, reversible, and split-product reactions.
 
 ---
 
@@ -11,7 +11,7 @@ A deep learning pipeline that identifies **which chemical reaction mechanism** i
 Given a set of reactor conditions (temperature, pressure, initial flows, rate constants), the model:
 
 1. Runs an ODE simulation to produce a concentration profile
-2. Classifies the profile into one of 20 reaction mechanisms
+2. Classifies the profile into one of 28 reaction mechanisms
 3. Returns a ranked list of candidates with probabilities
 
 ---
@@ -50,7 +50,7 @@ Mechanism Predictions (ranked by probability, 0.5% cutoff, top-10 max):
 
 ---
 
-## The 20 mechanism classes
+## The 28 mechanism classes
 
 ### Group A — Unimolecular (1st order)
 | Class | Equation | Rate constants |
@@ -96,6 +96,26 @@ Mechanism Predictions (ranked by probability, 0.5% cutoff, top-10 max):
 | 18 | `2A → C → D  ;  A+B → D` | k1, k2, k3 |
 | 19 | `A → C → D  ;  B → D` | k1, k2, k3 |
 
+### Group G — Reversible Simple (1st order both ways)
+| Class | Equation | Rate constants |
+|-------|----------|----------------|
+| 20 | `A ⇌ C` | k1, k2 |
+| 21 | `A ⇌ D` | k1, k2 |
+| 22 | `B ⇌ C` | k1, k2 |
+| 23 | `B ⇌ D` | k1, k2 |
+
+### Group H — Reversible Bimolecular (2nd order forward, 1st order reverse)
+| Class | Equation | Rate constants |
+|-------|----------|----------------|
+| 24 | `A + B ⇌ C` | k1, k2 |
+| 25 | `A + B ⇌ D` | k1, k2 |
+
+### Group I — Split Product (one reactant, two simultaneous products)
+| Class | Equation | Rate constants |
+|-------|----------|----------------|
+| 26 | `A → C + D` | k1 |
+| 27 | `B → C + D` | k1 |
+
 ---
 
 ## Rate constant ranges
@@ -104,8 +124,8 @@ Rate constants must stay within these ranges for reliable predictions (the model
 
 | Order | Applicable to | Valid range | Units |
 |-------|--------------|-------------|-------|
-| 1st order | Groups A, D (k2), E (k1/k2 for class 15), F (class 19) | `1e-6` – `1e-4` | mol s⁻¹ m⁻³ Pa⁻¹ |
-| 2nd order | Groups B, C, D (k1), E (k1/k2 for 14/16), F | `1e-11` – `5e-10` | mol s⁻¹ m⁻³ Pa⁻² |
+| 1st order | Groups A, D (k2), E (k1/k2 for class 15), F (class 19), G (k1, k2), I | `1e-6` – `1e-4` | mol s⁻¹ m⁻³ Pa⁻¹ |
+| 2nd order | Groups B, C, D (k1), E (k1/k2 for 14/16), F, H (k1) | `1e-11` – `5e-10` | mol s⁻¹ m⁻³ Pa⁻² |
 
 Per-mechanism breakdown:
 
@@ -122,6 +142,9 @@ Per-mechanism breakdown:
 | 17 | 2nd order (k1), 2nd order (k2) | 1st order (k3) | — |
 | 18 | 2nd order (k1), 1st order (k2) | 2nd order (k3) | — |
 | 19 | 1st order (k1), 1st order (k2) | 1st order (k3) | — |
+| 20–23 | 1st order | 1st order | — |
+| 24–25 | 2nd order | 1st order | — |
+| 26–27 | 1st order | — | — |
 
 ---
 
@@ -131,7 +154,7 @@ Per-mechanism breakdown:
 PYTHONPATH=src python3 src/predict.py \
   --ode \
   --reactor    PFR | CSTR | CSTR_cascade \
-  --mechanism  0-19 \
+  --mechanism  0-27 \
   --A0         <mol/s>   # initial molar flow of A, range: 0.05–0.5 \
   --B0         <mol/s>   # initial molar flow of B, range: 0.05–0.5 \
   --T          <K>       # temperature, range: 350–750 K \
@@ -159,10 +182,13 @@ PYTHONPATH=src python3 src/predict.py --ode --reactor CSTR_cascade \
 PYTHONPATH=src python3 src/predict.py --ode --reactor CSTR \
   --mechanism 15 --A0 0.25 --B0 0.2 --T 500 --P 80000 --rc k1=3e-5 k2=8e-5
 
-# Parallel-sequential (hardest class) — PFR
+# Reversible (equilibrium) — PFR
 PYTHONPATH=src python3 src/predict.py --ode --reactor PFR \
-  --mechanism 17 --A0 0.3 --B0 0.2 --T 550 --P 100000 \
-  --rc k1=2e-10 k2=1e-10 k3=5e-5
+  --mechanism 20 --A0 0.3 --B0 0.1 --T 550 --P 100000 --rc k1=5e-5 k2=2.5e-5
+
+# Split product A → C + D — PFR
+PYTHONPATH=src python3 src/predict.py --ode --reactor PFR \
+  --mechanism 26 --A0 0.3 --B0 0.1 --T 550 --P 100000 --rc k1=5e-5
 
 # JSON output for scripting
 PYTHONPATH=src python3 src/predict.py --ode --reactor PFR \
@@ -211,8 +237,8 @@ for pred in predictions:
 If you want to regenerate data and retrain the model:
 
 ```bash
-# 1. Generate 50K simulation runs
-PYTHONPATH=src python3 src/dataset_builder.py --n_runs 50000 --save_dir ./data
+# 1. Generate 100K simulation runs (all 28 classes)
+PYTHONPATH=src python3 src/dataset_builder.py --n_runs 100000 --save_dir ./data
 
 # 2. Preprocess (split + normalise)
 PYTHONPATH=src python3 src/preprocess.py --data_path ./data/dataset.npz --save_dir ./data
@@ -246,7 +272,7 @@ tail -f train.log   # monitor progress
 ```
 kinetics_nn/
 ├── src/
-│   ├── ode_solver.py       # 20-class mechanism registry + PFR/CSTR solvers
+│   ├── ode_solver.py       # 28-class mechanism registry + PFR/CSTR solvers
 │   ├── dataset_builder.py  # Dataset generation (ODE solver)
 │   ├── preprocess.py       # z-score normalisation, train/val/test split
 │   ├── model.py            # ResConv1D + SE attention (and CNN/GRU/LSTM alternatives)
@@ -255,24 +281,24 @@ kinetics_nn/
 │   ├── validate_excel.py   # Gallery plots + ODE vs Excel cross-validation
 │   └── excel_driver.py     # Excel integration (optional, classes 0–2 only)
 ├── data/
-│   ├── train.npz           # 33,352 training samples
-│   ├── val.npz             # 7,147 validation samples
-│   ├── test.npz            # 7,147 test samples
+│   ├── train.npz           # Training samples (~70,000)
+│   ├── val.npz             # Validation samples (~15,000)
+│   ├── test.npz            # Test samples (~15,000)
 │   ├── scaler.json         # z-score normalisation parameters
 │   └── dataset_info.json   # Dataset statistics + feature names
 ├── models/
-│   ├── best_model.pt           # Trained model (SWA-averaged, 94.49% val acc)
+│   ├── best_model.pt           # Trained model (SWA-averaged, 92.24% val acc)
 │   ├── training_config.json    # Architecture + training hyperparameters
 │   ├── classification_report.txt
 │   ├── test_report.txt         # Per-class results on held-out test set
 │   ├── training_curves.png
 │   └── confusion_matrix.png
 ├── validation/
-│   ├── mechanism_gallery_pfr.png   # Concentration profiles for all 20 classes
+│   ├── mechanism_gallery_pfr.png   # Concentration profiles for all 28 classes
 │   ├── mechanism_gallery_cstr.png
 │   └── intermediate_detail.png
 └── configs/
-    ├── default_config.json       # 20-class production config
+    ├── default_config.json       # 28-class production config
     └── smoke_test_config.json
 ```
 
@@ -289,7 +315,7 @@ kinetics_nn/
 | Stage 1 | MaxPool + 2× ResBlock(64) + SE attention |
 | Stage 2 | Conv1d(64→128, k=1) + MaxPool + 2× ResBlock(128) + SE attention |
 | Stage 3 | Conv1d(128→256, k=1) + MaxPool + 2× ResBlock(256) + SE attention |
-| Head | AdaptiveAvgPool → FC(256) → FC(128) → FC(20) |
+| Head | AdaptiveAvgPool → FC(256) → FC(128) → FC(28) |
 | Parameters | 1,275,444 |
 
 **16 input features per grid point:**
@@ -306,39 +332,47 @@ kinetics_nn/
 
 ## Performance
 
-### Test set (7,147 held-out samples, never seen during training)
+### Validation set (14,176 samples)
 
-| Metric | Standard | TTA ×5 |
-|--------|----------|--------|
-| Overall accuracy | 94.26% | 94.49% |
-| Macro avg F1 | 0.96 | 0.96 |
+| Metric | Value |
+|--------|-------|
+| Overall accuracy | 92.24% |
+| Macro avg F1 | 0.93 |
 
 ### Per-class F1 scores
 
 | Class | Equation | F1 |
 |-------|----------|----|
-| 0 | A → C | 0.99 |
-| 1 | A → D | 1.00 |
-| 2 | B → C | 0.99 |
-| 3 | B → D | 1.00 |
-| 4 | A+B → C | 0.97 |
-| 5 | A+B → D | 0.96 |
+| 0 | A → C | 0.90 |
+| 1 | A → D | 0.90 |
+| 2 | B → C | 0.90 |
+| 3 | B → D | 0.91 |
+| 4 | A+B → C | 0.86 |
+| 5 | A+B → D | 0.87 |
 | 6 | 2A → C | 0.99 |
-| 7 | 2A → D | 0.96 |
+| 7 | 2A → D | 0.97 |
 | 8 | 2B → C | 1.00 |
-| 9 | 2B → D | 1.00 |
-| 10 | A+B → C → D | 0.91 |
-| 11 | 2A → C → D | 0.95 |
+| 9 | 2B → D | 0.99 |
+| 10 | A+B → C → D | 0.94 |
+| 11 | 2A → C → D | 0.93 |
 | 12 | A → C → D | 0.97 |
-| 13 | B → C → D | 0.98 |
-| 14 | A+B→C ; 2A→D | 0.91 |
-| 15 | A→C ; B→D | 0.97 |
+| 13 | B → C → D | 0.99 |
+| 14 | A+B→C ; 2A→D | 0.93 |
+| 15 | A→C ; B→D | 0.96 |
 | 16 | 2A→C ; 2B→D | 0.96 |
-| 17 | A+B→C→D ; 2A→D | **0.82** |
-| 18 | 2A→C→D ; A+B→D | **0.85** |
-| 19 | A→C→D ; B→D | 0.96 |
+| 17 | A+B→C→D ; 2A→D | **0.84** |
+| 18 | 2A→C→D ; A+B→D | **0.84** |
+| 19 | A→C→D ; B→D | 0.95 |
+| 20 | A ⇌ C | 0.90 |
+| 21 | A ⇌ D | 0.91 |
+| 22 | B ⇌ C | 0.90 |
+| 23 | B ⇌ D | 0.91 |
+| 24 | A+B ⇌ C | 0.88 |
+| 25 | A+B ⇌ D | 0.89 |
+| 26 | A → C + D | **1.00** |
+| 27 | B → C + D | **1.00** |
 
-Classes 17 and 18 are the hardest — they are structurally very similar to each other and to simpler mechanisms. When the model misses, it always places the correct class at rank 2.
+Split-product classes (26–27) achieve perfect F1 — they are uniquely identifiable because both C and D rise simultaneously from a single reactant. Classes 17 and 18 remain the hardest; when the model misses, it places the correct class at rank 2.
 
 ---
 
@@ -367,3 +401,5 @@ Classes 17 and 18 are the hardest — they are structurally very similar to each
 **Low confidence for all classes** — Your parameters may be outside the training distribution. Check that T, P, A0, B0 are within the ranges above.
 
 **Classes 17/18 confused** — These two mechanisms are genuinely hard to distinguish at certain rate constant ratios. Check rank 2 in the output — the correct class is usually there.
+
+**Reversible vs irreversible confused** — Reversible classes (20–25) may look similar to their irreversible counterparts (0–5) if the equilibrium constant is very large (Keq >> 1). Use k2 values that give a visible reverse reaction (Keq between 0.1 and 10).

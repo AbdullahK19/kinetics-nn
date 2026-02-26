@@ -2,7 +2,7 @@
 Validation & analysis script.
 
 1. Compares the Python ODE solver against the Excel workbook for Classes 0-2 (original).
-2. Visualises concentration profiles for all 20 mechanism classes.
+2. Visualises concentration profiles for all 28 mechanism classes.
 3. Highlights the intermediate rise-then-fall behaviour for sequential classes.
 
 Usage (Excel validation -- requires xlwings + Excel):
@@ -32,7 +32,7 @@ from ode_solver import (
 # ------------------------------------------------------------------
 
 def _get_test_params() -> Dict[int, Dict[str, float]]:
-    """Return representative rate constants for each of the 20 mechanisms."""
+    """Return representative rate constants for each of the 28 mechanisms."""
     return {
         # Group A: Unimolecular (1st order)
         0:  {'k1': 5e-5},
@@ -60,6 +60,17 @@ def _get_test_params() -> Dict[int, Dict[str, float]]:
         17: {'k1': 2.0e-10, 'k2': 1.5e-10, 'k3': 5e-5},
         18: {'k1': 2.5e-10, 'k2': 5e-5, 'k3': 2.0e-10},
         19: {'k1': 5e-5, 'k2': 5e-5, 'k3': 5e-5},
+        # Group G: Reversible Simple (1st order both ways) — Keq=2 (k1/k2=2)
+        20: {'k1': 5e-5, 'k2': 2.5e-5},
+        21: {'k1': 5e-5, 'k2': 2.5e-5},
+        22: {'k1': 5e-5, 'k2': 2.5e-5},
+        23: {'k1': 5e-5, 'k2': 2.5e-5},
+        # Group H: Reversible Bimolecular (2nd order forward, 1st order reverse)
+        24: {'k1': 2.5e-10, 'k2': 5e-5},
+        25: {'k1': 2.5e-10, 'k2': 5e-5},
+        # Group I: Split Product (1 reactant, 2 simultaneous products)
+        26: {'k1': 5e-5},
+        27: {'k1': 5e-5},
     }
 
 
@@ -127,7 +138,7 @@ def plot_mechanism_gallery(save_dir: str = './validation') -> None:
         axes[j].set_visible(False)
 
     fig.suptitle(
-        'Mechanism Gallery: PFR Concentration Profiles (20 Classes)',
+        'Mechanism Gallery: PFR Concentration Profiles (28 Classes)',
         fontsize=14, fontweight='bold',
     )
     plt.tight_layout(rect=[0, 0, 1, 0.95])
@@ -178,7 +189,7 @@ def plot_cstr_gallery(save_dir: str = './validation') -> None:
         axes[j].set_visible(False)
 
     fig.suptitle(
-        'Mechanism Gallery: CSTR Cascade Profiles (20 Classes)',
+        'Mechanism Gallery: CSTR Cascade Profiles (28 Classes)',
         fontsize=14, fontweight='bold',
     )
     plt.tight_layout(rect=[0, 0, 1, 0.95])

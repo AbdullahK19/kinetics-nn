@@ -6,7 +6,7 @@
     "random_seed": 42,
     "save_dir": "./data",
     "use_ode_solver": true,
-    "mechanism_classes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    "mechanism_classes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]
   },
   "preprocessing": {
     "train_ratio": 0.7,
@@ -25,7 +25,7 @@
   },
   "model": {
     "num_features": 16,
-    "num_classes": 20,
+    "num_classes": 28,
     "seq_length": 128,
     "hidden_channels": [16, 32],
     "fc_hidden": 64

@@ -461,7 +461,7 @@ def main():
     parser.add_argument(
         '--mechanisms', type=int, nargs='+',
         default=list(range(len(MECHANISM_REGISTRY))),
-        help='Mechanism classes to include (default: all 20)',
+        help='Mechanism classes to include (default: all 28)',
     )
     parser.add_argument('--V_total', type=float, default=1.0,
                         help='Total reactor volume in m^3')

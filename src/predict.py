@@ -142,7 +142,7 @@ class MechanismPredictor:
              derivatives, mole_fractions], axis=1
         )  # (grid_length, 16)
 
-        features = features[np.newaxis, ...]  # (1, grid_length, 8)
+        features = features[np.newaxis, ...]  # (1, grid_length, 16)
         features = self.scaler.transform(features)
 
         return features
@@ -216,7 +216,7 @@ class MechanismPredictor:
 
         Args:
             reactor_type:    'PFR', 'CSTR', or 'CSTR_cascade'
-            mechanism_class: Mechanism class ID (0-19)
+            mechanism_class: Mechanism class ID (0-27)
             rate_constants:  Dict of rate constants for the mechanism
             A0, B0:          Initial molar flow rates (mol/s)
             T:               Temperature in K (default 550 K)
@@ -292,7 +292,7 @@ def main():
                         choices=['PFR', 'CSTR', 'CSTR_cascade'],
                         help='Reactor type: PFR, CSTR (single), or CSTR_cascade')
     parser.add_argument('--mechanism', type=int,
-                        help='Mechanism class ID (0-19) for ODE simulation')
+                        help='Mechanism class ID (0-27) for ODE simulation')
     parser.add_argument('--A0', type=float, help='Initial molar flow of A (mol/s)')
     parser.add_argument('--B0', type=float, help='Initial molar flow of B (mol/s)')
     parser.add_argument('--I0', type=float, default=0.0,
@@ -322,7 +322,7 @@ def main():
         if args.reactor is None:
             parser.error("--ode requires --reactor (PFR, CSTR, or CSTR_cascade)")
         if args.mechanism is None:
-            parser.error("--ode requires --mechanism (class ID 0-19)")
+            parser.error("--ode requires --mechanism (class ID 0-27)")
         if args.A0 is None or args.B0 is None:
             parser.error("--ode requires --A0 and --B0")
         if not args.rc:

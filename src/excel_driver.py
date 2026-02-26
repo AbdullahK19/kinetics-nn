@@ -203,6 +203,8 @@ def close_workbook(app: xw.App, wb: xw.Book, save: bool = False) -> None:
         wb: xlwings workbook object
         save: Whether to save changes before closing
     """
+    if save:
+        wb.save()
     wb.close()
     app.quit()
 

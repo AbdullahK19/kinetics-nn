@@ -4,8 +4,8 @@
 
 An end-to-end deep learning pipeline for identifying chemical reaction mechanisms from concentration profiles in PFR and CSTR reactors.
 
-- **20 mechanism classes** — simple, sequential, parallel, and parallel-sequential reactions
-- **94.49% validation accuracy** on 7,147 held-out samples
+- **28 mechanism classes** — simple, sequential, parallel, parallel-sequential, reversible, and split-product reactions
+- **92.24% validation accuracy** on 14,176 held-out samples
 - **No Excel required** — Python ODE solver covers all mechanisms
 - **Ranked predictions** with probabilities and configurable threshold
 
@@ -13,13 +13,13 @@ An end-to-end deep learning pipeline for identifying chemical reaction mechanism
 
 ## Final model performance
 
-| | Standard | TTA ×5 |
-|--|----------|--------|
-| Validation accuracy | 94.49% | 94.66% |
-| Test accuracy | 94.26% | 94.49% |
-| Macro avg F1 | 0.96 | 0.96 |
+| | Value |
+|--|-------|
+| Validation accuracy | 92.24% |
+| Test accuracy | 92.21% |
+| Macro avg F1 | 0.93 |
 
-Trained on 50,000 ODE-simulated runs (33,352 train / 7,147 val / 7,147 test).
+Trained on 100,000 ODE-simulated runs (~70,000 train / ~15,000 val / ~15,000 test).
 
 ---
 
@@ -29,7 +29,7 @@ Trained on 50,000 ODE-simulated runs (33,352 train / 7,147 val / 7,147 test).
 
 - Input: (batch, 128 timesteps, 16 features)
 - 3 stages: channels 64 → 128 → 256, with 2 ResBlocks + SE attention per stage
-- 3-layer FC head: 256 → 128 → 20 classes
+- 3-layer FC head: 256 → 128 → 28 classes
 - **1,275,444 parameters**
 - Trained with: Focal Loss (γ=2.0), SWA (20 epochs), cosine warm restarts, mixup, TTA
 
@@ -39,8 +39,8 @@ Trained on 50,000 ODE-simulated runs (33,352 train / 7,147 val / 7,147 test).
 
 | File | Purpose |
 |------|---------|
-| `src/ode_solver.py` | Registry of all 20 mechanisms, PFR and CSTR cascade ODE solvers |
-| `src/dataset_builder.py` | ODE simulation, 16-channel feature construction, oversampling |
+| `src/ode_solver.py` | Registry of all 28 mechanisms (Groups A–I), PFR and CSTR cascade ODE solvers |
+| `src/dataset_builder.py` | ODE simulation, 16-channel feature construction, oversampling, Keq constraint for reversible classes |
 | `src/preprocess.py` | z-score scaler, stratified 70/15/15 train/val/test split |
 | `src/model.py` | ResConv1DClassifier (+ CNN, GRU, LSTM alternatives) |
 | `src/train.py` | Training loop: FocalLoss, SWA, TTA, --resume, cosine LR |
@@ -64,7 +64,7 @@ Residual connections allow deeper networks without gradient vanishing. The SE at
 Classes 17 and 18 (parallel-sequential) are the hardest — they share sub-reactions with simpler classes. Focal Loss down-weights easy examples (simple mechanisms at 99%+ probability) and focuses gradient updates on the hard boundary cases.
 
 ### Why SWA?
-Stochastic Weight Averaging averages model weights across the final training epochs, which smooths the loss landscape and improves generalisation. It pushed val accuracy from 94.36% (best single checkpoint) to 94.49%.
+Stochastic Weight Averaging averages model weights across the final training epochs, which smooths the loss landscape and improves generalisation.
 
 ### Why oversample classes 14, 17, 18?
 These three classes are harder to classify (they contain sub-reactions present in simpler classes). Giving them 2× sampling weight during data generation ensures the model sees more boundary examples during training.
@@ -72,32 +72,37 @@ These three classes are harder to classify (they contain sub-reactions present i
 ### Why Arrhenius-sampled rate constants?
 Sampling `k_ref` at T=550K then computing `k(T)` via Arrhenius ensures rate constants are physically self-consistent across the temperature range 350–750K, which is what would be observed in a real reactor.
 
+### Why Keq constraints for reversible classes (20–25)?
+Without constraining the equilibrium constant, a reversible mechanism with Keq >> 1 produces a profile indistinguishable from an irreversible one. Constraining Keq to [0.1, 10] ensures the reverse reaction is visible and the mechanism is distinguishable during training.
+
 ---
 
 ## Training improvements over v0.2
 
 | Aspect | v0.2 (original) | Current |
 |--------|----------------|---------|
-| Classes | 5 | 20 |
+| Classes | 5 | 28 |
 | Features | 6 (raw concentrations only) | 16 (+ derivatives, mole fractions, T, P) |
 | Architecture | Plain CNN, 49K params | ResConv1D + SE, 1.275M params |
-| Dataset | 3,000 runs | 50,000 runs |
+| Dataset | 3,000 runs | 100,000 runs |
 | Loss | CrossEntropy | Focal Loss (γ=2.0) |
 | Post-training | None | SWA (20 epochs) |
 | Inference | Single pass | TTA ×5 |
-| Val accuracy | ~83% (1K samples) | **94.49%** |
+| Val accuracy | ~83% (1K samples) | **92.24%** |
 
 ---
 
 ## Known limitations
 
-1. **Classes 17 and 18** — 82–85% F1. These parallel-sequential mechanisms are hard to distinguish from each other and from simpler sub-mechanisms at certain rate constant ratios. The correct answer is always in the top-2.
+1. **Classes 17 and 18** — 84% F1. These parallel-sequential mechanisms are hard to distinguish from each other and from simpler sub-mechanisms at certain rate constant ratios. The correct answer is always in the top-2.
 
-2. **Simulation-only training** — The model has never seen real experimental data. Real measurements include sensor noise, baseline drift, and imperfect sampling that are absent from ODE simulations.
+2. **Reversible vs irreversible** — Classes 20–25 (reversible) and 0–5 (irreversible) share the same stoichiometry; they differ only by the presence of a reverse reaction. Very large Keq values make these look near-identical.
 
-3. **No input range validation** — Passing T=1000K or A0=5 mol/s will not raise an error; the model will extrapolate outside its training distribution and give unreliable output. Keep parameters within the ranges listed in README.md.
+3. **Simulation-only training** — The model has never seen real experimental data. Real measurements include sensor noise, baseline drift, and imperfect sampling that are absent from ODE simulations.
 
-4. **Excel cross-validation** — Requires xlwings + Microsoft Excel (macOS/Windows only). The ODE solver is the primary path; Excel is only used for cross-checking classes 0–2.
+4. **No input range validation** — Passing T=1000K or A0=5 mol/s will not raise an error; the model will extrapolate outside its training distribution and give unreliable output. Keep parameters within the ranges listed in README.md.
+
+5. **Excel cross-validation** — Requires xlwings + Microsoft Excel (macOS/Windows only). The ODE solver is the primary path; Excel is only used for cross-checking classes 0–2.
 
 ---
 
@@ -110,6 +115,6 @@ Sampling `k_ref` at T=550K then computing `k(T)` via Arrhenius ensures rate cons
 | `models/classification_report.txt` | Per-class precision/recall/F1 on validation set |
 | `models/test_report.txt` | Per-class results on held-out test set (standard + TTA) |
 | `models/training_curves.png` | Loss and accuracy vs epoch |
-| `models/confusion_matrix.png` | 20×20 confusion matrix on validation set |
+| `models/confusion_matrix.png` | 28×28 confusion matrix on validation set |
 | `data/scaler.json` | 16-feature mean/std for z-score normalisation |
 | `data/split_info.json` | Train/val/test sizes and split parameters |

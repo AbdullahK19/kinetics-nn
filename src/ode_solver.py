@@ -461,7 +461,7 @@ def compute_rates(
     matching the Excel workbook convention.
 
     Args:
-        class_id: Mechanism class ID (0-19)
+        class_id: Mechanism class ID (0-27)
         n: Molar flow rates [nA, nB, nC, nD]
         n_total: Total molar flow rate (including inert)
         P: Total pressure (Pa)
@@ -505,7 +505,7 @@ def solve_pfr(
     Solve PFR as an ODE initial-value problem: dn_i/dV = sum(nu_ij * r_j).
 
     Args:
-        mechanism_class_id: Mechanism class (0-19)
+        mechanism_class_id: Mechanism class (0-27)
         n0: Initial molar flow rates [nA0, nB0, nC0, nD0]
         nI0: Inert molar flow rate (constant)
         rate_constants: Dict of rate constants
@@ -576,7 +576,7 @@ def solve_cstr_cascade(
     This is a system of nonlinear equations solved with fsolve per stage.
 
     Args:
-        mechanism_class_id: Mechanism class (0-19)
+        mechanism_class_id: Mechanism class (0-27)
         n0: Initial molar flow rates [nA0, nB0, nC0, nD0]
         nI0: Inert molar flow rate (constant)
         rate_constants: Dict of rate constants
