@@ -1,286 +1,126 @@
 # Quick Start Guide
 
-Get started with the kinetics_nn pipeline in 5 minutes!
-
-## Prerequisites Check
-
-Before starting, ensure you have:
-
-1. ✓ Python 3.8 or higher installed
-2. ✓ Microsoft Excel installed and working
-3. ✓ The Excel workbook: `PFR-CSTR-cascade_Calculation-macro.xlsm`
-
-## Step 1: Setup (2 minutes)
-
-```bash
-# Navigate to project directory
-cd ~/kinetics_nn
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-## Step 2: Update Workbook Path (30 seconds)
-
-Edit the workbook path in your quickstart script:
-
-**For macOS/Linux** - Edit `quickstart.sh`:
-```bash
-WORKBOOK="/mnt/data/PFR-CSTR-cascade_Calculation-macro.xlsm"
-```
-
-**For Windows** - Edit `quickstart.bat`:
-```batch
-set WORKBOOK=C:\path\to\PFR-CSTR-cascade_Calculation-macro.xlsm
-```
-
-Replace with the actual path to your workbook.
-
-## Step 3: Run Smoke Test (5-10 minutes)
-
-### Option A: Automated Script
-
-**macOS/Linux**:
-```bash
-./quickstart.sh
-```
-
-**Windows**:
-```batch
-quickstart.bat
-```
-
-### Option B: Manual Commands
-
-```bash
-# Test Excel connection
-python -m src.excel_driver /path/to/workbook.xlsm
-
-# Generate small dataset (50 runs, ~2 minutes)
-python -m src.dataset_builder \
-    --workbook /path/to/workbook.xlsm \
-    --n_runs 50 \
-    --save_dir ./data
-
-# Preprocess data (~5 seconds)
-python -m src.preprocess \
-    --data_path ./data/dataset.npz \
-    --save_dir ./data
-
-# Train model (10 epochs, ~2 minutes)
-python -m src.train \
-    --data_dir ./data \
-    --epochs 10 \
-    --batch_size 8 \
-    --save_dir ./models
-
-# Make prediction (~10 seconds)
-python -m src.predict \
-    --excel \
-    --workbook /path/to/workbook.xlsm \
-    --reactor PFR \
-    --A0 0.2 --B0 0.15 --I0 0.05 \
-    --k1 1e-10 --k2 0 \
-    --model_path ./models/best_model.pt \
-    --scaler_path ./data/scaler.json \
-    --config_path ./models/training_config.json
-```
-
-## Step 4: Check Results
-
-After the smoke test completes:
-
-1. **View training curves**:
-   ```bash
-   open models/training_curves.png
-   ```
-
-2. **View confusion matrix**:
-   ```bash
-   open models/confusion_matrix.png
-   ```
-
-3. **Check prediction output** - should see something like:
-   ```
-   Mechanism Predictions (ranked by probability):
-   ============================================================
-
-   1. Equation: A + B -> C
-      Type: second_order
-      Probability: 0.9234 (92.34%)
-      Class ID: 0
-   ```
-
-## Step 5: Generate Production Dataset (Optional)
-
-For better model performance, generate a larger dataset:
-
-```bash
-# Generate 2000 runs (~30-60 minutes)
-python -m src.dataset_builder \
-    --workbook /path/to/workbook.xlsm \
-    --n_runs 2000 \
-    --save_dir ./data
-
-# Preprocess
-python -m src.preprocess \
-    --data_path ./data/dataset.npz \
-    --save_dir ./data
-
-# Train with more epochs (~10-30 minutes on CPU)
-python -m src.train \
-    --data_dir ./data \
-    --epochs 50 \
-    --save_dir ./models \
-    --device cpu
-```
-
-### Use GPU for Faster Training (if available)
-
-**Apple Silicon (M1/M2)**:
-```bash
-python -m src.train --data_dir ./data --epochs 50 --device mps
-```
-
-**NVIDIA GPU**:
-```bash
-python -m src.train --data_dir ./data --epochs 50 --device cuda
-```
-
-## Common Use Cases
-
-### Predict from New Parameters
-
-```bash
-python -m src.predict \
-    --excel \
-    --workbook /path/to/workbook.xlsm \
-    --reactor PFR \
-    --A0 0.3 --B0 0.2 --I0 0.1 \
-    --k1 2e-10 --k2 1e-10 \
-    --show_all
-```
-
-### Change Confidence Threshold
-
-```bash
-python -m src.predict \
-    --excel \
-    --workbook /path/to/workbook.xlsm \
-    --reactor CSTR \
-    --A0 0.2 --B0 0.15 --I0 0.05 \
-    --k1 0 --k2 5e-10 \
-    --threshold 0.01  # Lower threshold shows more predictions
-```
-
-### Get JSON Output
-
-```bash
-python -m src.predict \
-    --excel \
-    --workbook /path/to/workbook.xlsm \
-    --reactor PFR \
-    --A0 0.2 --B0 0.1 --I0 0.05 \
-    --k1 1e-10 --k2 0 \
-    --json_output > prediction.json
-```
-
-## Troubleshooting
-
-### Excel won't open
-
-**Problem**: `xlwings` cannot connect to Excel
-
-**Solution**:
-1. Ensure Excel is open and working
-2. Try with visible Excel: add `--visible` flag
-3. On macOS: Check System Preferences → Security & Privacy
-
-### Import errors
-
-**Problem**: `ModuleNotFoundError`
-
-**Solution**:
-```bash
-# Make sure virtual environment is activated
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-
-# Reinstall dependencies
-pip install -r requirements.txt
-```
-
-### Out of memory
-
-**Problem**: System runs out of memory during training
-
-**Solution**:
-```bash
-# Reduce batch size
-python -m src.train --batch_size 8
-
-# Or reduce dataset size
-python -m src.dataset_builder --n_runs 500
-```
-
-### Low accuracy
-
-**Problem**: Model accuracy is below 80%
-
-**Solution**:
-1. Generate more data: `--n_runs 2000` or higher
-2. Train longer: `--epochs 100`
-3. Try different model: `--model_type gru`
-
-## Next Steps
-
-1. Read [README.md](README.md) for detailed documentation
-2. Review [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for architecture overview
-3. Check example configs in `configs/`
-4. Customize parameters for your use case
-
-## Support
-
-For issues or questions:
-1. Check README.md troubleshooting section
-2. Review error messages carefully
-3. Test with smaller datasets first
-4. Contact the author
-
-## Quick Reference
-
-### File Locations
-
-- **Models**: `./models/best_model.pt`
-- **Dataset**: `./data/dataset.npz`
-- **Scaler**: `./data/scaler.json`
-- **Plots**: `./models/*.png`
-
-### Important Parameters
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `--n_runs` | 1000 | Number of simulation runs |
-| `--epochs` | 50 | Training epochs |
-| `--batch_size` | 32 | Batch size |
-| `--lr` | 0.001 | Learning rate |
-| `--threshold` | 0.05 | Prediction confidence threshold |
-| `--device` | cpu | Device (cpu/cuda/mps) |
-
-### Mechanism Classes
-
-- **Class 0**: A + B → C (k1>0, k2=0)
-- **Class 1**: 2A → D (k1=0, k2>0)
-- **Class 2**: Both reactions (k1>0, k2>0)
+Get predictions from the trained 28-class ensemble in under 5 minutes.
 
 ---
 
-**Ready to start?** Run the smoke test and see the magic happen! 🚀
+## Step 1: Install dependencies
+
+```bash
+pip install torch numpy scipy scikit-learn matplotlib seaborn tqdm openpyxl
+```
+
+---
+
+## Step 2: Run a prediction
+
+The model is already trained. No setup needed — just run:
+
+```bash
+# Predict mechanism from reactor conditions (PFR, A → C reaction)
+PYTHONPATH=src python3 src/predict.py \
+  --ode --reactor PFR \
+  --mechanism 0 --A0 0.3 --B0 0.1 \
+  --T 550 --P 100000 --rc k1=5e-5
+```
+
+**Example output:**
+```
+Mechanism Predictions (ranked by probability, 0.5% cutoff, top-10 max):
+
+ 1. Equation:   A -> C
+    Type:        simple
+    Likelihood:   91.56%
+
+ 2. Equation:   A -> C -> D
+    Type:        sequential
+    Likelihood:    0.84%
+```
+
+---
+
+## Step 3: Use the ensemble (higher accuracy)
+
+The 3-model ensemble gives 93.63% test accuracy:
+
+```bash
+PYTHONPATH=src python3 src/ensemble_predict.py \
+  --ensemble_dirs models/ensemble_1 models/ensemble_2 models/ensemble_3 \
+  --ode --reactor PFR \
+  --mechanism 4 --A0 0.2 --B0 0.15 \
+  --T 550 --P 100000 --rc k1=1e-10
+```
+
+---
+
+## Key parameters
+
+| Parameter | Flag | Range | Notes |
+|-----------|------|-------|-------|
+| Reactor type | `--reactor` | PFR / CSTR / CSTR_cascade | |
+| Molar flow A | `--A0` | 0.05–0.5 mol/s | |
+| Molar flow B | `--B0` | 0.05–0.5 mol/s | |
+| Temperature | `--T` | 350–750 K | |
+| Pressure | `--P` | 50,000–200,000 Pa | |
+| 1st-order rate | `--rc k1=` | 1e-6 – 1e-4 | Groups A, G, I |
+| 2nd-order rate | `--rc k1=` | 1e-11 – 5e-10 | Groups B, C, H |
+
+---
+
+## Evaluate on test set
+
+```bash
+# Single model
+PYTHONPATH=src python3 eval_ensemble.py
+# → prints per-class recall + overall accuracy
+
+# Noise robustness (0–50% Gaussian noise, 101 levels, ~9 min)
+PYTHONPATH=src python3 noise_robustness.py
+# → saves results/noise_robustness.xlsx
+```
+
+---
+
+## Retrain from scratch
+
+```bash
+# 1. Generate dataset (500K runs, ~2–3 hours)
+PYTHONPATH=src python3 src/dataset_builder.py --n_runs 500000
+
+# 2. Preprocess
+PYTHONPATH=src python3 src/preprocess.py
+
+# 3. Train (use MPS on Apple Silicon for ~4–6 hours)
+PYTHONPATH=src python3 src/train.py \
+  --model_type rescnn --epochs 300 \
+  --hidden_channels 64 128 256 --fc_hidden 256 --blocks_per_stage 2 \
+  --dropout 0.25 --lr 0.0003 --weight_decay 0.001 --batch_size 64 \
+  --optimizer adamw --scheduler cosine --label_smoothing 0.1 \
+  --class_weights --augment --patience 80 --focal --focal_gamma 2.0 \
+  --device mps --seed 42 --save_dir models/ensemble_1
+```
+
+---
+
+## File locations
+
+| File | Purpose |
+|------|---------|
+| `models/ensemble_1/best_model.pt` | Trained weights (seed 42, 92.99% val) |
+| `models/ensemble_2/best_model.pt` | Trained weights (seed 123, 92.90% val) |
+| `models/ensemble_3/best_model.pt` | Trained weights (seed 456, 92.94% val) |
+| `data/scaler.json` | z-score normalisation parameters |
+| `data/dataset_info.json` | Class names and dataset statistics |
+| `results/noise_robustness.xlsx` | Noise robustness results |
+
+---
+
+## Troubleshooting
+
+**`ModuleNotFoundError`** — Always prefix commands with `PYTHONPATH=src`
+
+**`ODE solver failed`** — Rate constants too extreme. Stay within the ranges above.
+
+**Low confidence for all classes** — Parameters outside training distribution (check T, P, A0, B0 ranges).
+
+**Classes 17/18 confused** — These are genuinely hard to distinguish. Check rank 2 — the correct class is usually there.

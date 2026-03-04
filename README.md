@@ -2,7 +2,7 @@
 
 A deep learning pipeline that identifies **which chemical reaction mechanism** is operating inside a reactor, purely from concentration profiles. Feed it reactor outputs; it tells you the mechanism.
 
-**92.24% validation accuracy** across 28 mechanism classes, covering unimolecular, bimolecular, sequential, parallel, reversible, and split-product reactions.
+**93.63% test accuracy** (3-model ensemble) across 28 mechanism classes, covering unimolecular, bimolecular, sequential, parallel, reversible, and split-product reactions.
 
 ---
 
@@ -232,6 +232,26 @@ for pred in predictions:
 
 ---
 
+## Ensemble inference
+
+The ensemble averages softmax probabilities from all 3 models, giving 93.63% accuracy vs 92.9–93.2% for any individual model.
+
+```bash
+# Evaluate ensemble on test set
+PYTHONPATH=src python3 eval_ensemble.py
+
+# Single ODE prediction using ensemble
+PYTHONPATH=src python3 src/ensemble_predict.py \
+  --ensemble_dirs models/ensemble_1 models/ensemble_2 models/ensemble_3 \
+  --ode --reactor PFR --mechanism 4 \
+  --A0 0.2 --B0 0.1 --T 550 --P 100000 --rc k1=1e-10
+
+# Noise robustness analysis (takes ~9 minutes on MPS)
+PYTHONPATH=src python3 noise_robustness.py
+```
+
+---
+
 ## Retrain from scratch
 
 If you want to regenerate data and retrain the model:
@@ -272,33 +292,45 @@ tail -f train.log   # monitor progress
 ```
 kinetics_nn/
 ├── src/
-│   ├── ode_solver.py       # 28-class mechanism registry + PFR/CSTR solvers
-│   ├── dataset_builder.py  # Dataset generation (ODE solver)
-│   ├── preprocess.py       # z-score normalisation, train/val/test split
-│   ├── model.py            # ResConv1D + SE attention (and CNN/GRU/LSTM alternatives)
-│   ├── train.py            # Training: FocalLoss, SWA, TTA, cosine LR, --resume
-│   ├── predict.py          # Inference: MechanismPredictor class + CLI
-│   ├── validate_excel.py   # Gallery plots + ODE vs Excel cross-validation
-│   └── excel_driver.py     # Excel integration (optional, classes 0–2 only)
+│   ├── ode_solver.py        # 28-class mechanism registry + PFR/CSTR solvers
+│   ├── dataset_builder.py   # Dataset generation (ODE solver, 500K runs)
+│   ├── preprocess.py        # z-score normalisation, train/val/test split
+│   ├── model.py             # ResConv1D + SE attention (and CNN/GRU/LSTM alternatives)
+│   ├── train.py             # Training: FocalLoss, SWA, TTA, cosine LR, --resume
+│   ├── predict.py           # Single-model inference: MechanismPredictor class + CLI
+│   ├── ensemble_predict.py  # 3-model ensemble inference CLI
+│   ├── validate_excel.py    # Gallery plots + ODE vs Excel cross-validation
+│   └── excel_driver.py      # Excel integration (optional, classes 0–2 only)
 ├── data/
-│   ├── train.npz           # Training samples (~70,000)
-│   ├── val.npz             # Validation samples (~15,000)
-│   ├── test.npz            # Test samples (~15,000)
-│   ├── scaler.json         # z-score normalisation parameters
-│   └── dataset_info.json   # Dataset statistics + feature names
+│   ├── train.npz            # Training samples (331,300)
+│   ├── val.npz              # Validation samples (70,993)
+│   ├── test.npz             # Test samples (70,994)
+│   ├── scaler.json          # z-score normalisation parameters
+│   └── dataset_info.json    # Dataset statistics + feature names
 ├── models/
-│   ├── best_model.pt           # Trained model (SWA-averaged, 92.24% val acc)
-│   ├── training_config.json    # Architecture + training hyperparameters
-│   ├── classification_report.txt
-│   ├── test_report.txt         # Per-class results on held-out test set
-│   ├── training_curves.png
-│   └── confusion_matrix.png
+│   ├── ensemble_1/          # Seed 42 — best val 92.99% (epoch 72)
+│   │   ├── best_model.pt
+│   │   └── training_config.json
+│   ├── ensemble_2/          # Seed 123 — best val 92.90% (epoch 25)
+│   │   ├── best_model.pt
+│   │   └── training_config.json
+│   └── ensemble_3/          # Seed 456 — best val 92.94% (epoch 83)
+│       ├── best_model.pt
+│       └── training_config.json
+├── results/
+│   ├── noise_robustness.xlsx      # Full noise analysis (3 sheets, colour-coded)
+│   ├── noise_overall.csv          # Overall accuracy vs noise level
+│   ├── noise_per_class_recall.csv # Per-class recall vs noise level
+│   └── noise_breakpoints.csv      # Per-class noise breakpoints
+├── eval_ensemble.py         # Evaluate ensemble on test set
+├── noise_robustness.py      # Noise robustness analysis (0–50% in 0.5% steps)
+├── run_ensemble_mps.sh      # Sequential MPS training script
 ├── validation/
 │   ├── mechanism_gallery_pfr.png   # Concentration profiles for all 28 classes
 │   ├── mechanism_gallery_cstr.png
 │   └── intermediate_detail.png
 └── configs/
-    ├── default_config.json       # 28-class production config
+    ├── default_config.json         # 28-class production config
     └── smoke_test_config.json
 ```
 
@@ -332,47 +364,64 @@ kinetics_nn/
 
 ## Performance
 
-### Validation set (14,176 samples)
+### Ensemble test results (70,994 samples)
 
-| Metric | Value |
-|--------|-------|
-| Overall accuracy | 92.24% |
-| Macro avg F1 | 0.93 |
+| Model | Val Accuracy | Test Accuracy |
+|-------|-------------|---------------|
+| Model 1 (seed 42) | 92.99% | 93.03% |
+| Model 2 (seed 123) | 92.90% | 92.91% |
+| Model 3 (seed 456) | 92.94% | 93.16% |
+| **Ensemble (averaged)** | — | **93.63%** |
 
-### Per-class F1 scores
+### Per-class recall (ensemble, test set)
 
-| Class | Equation | F1 |
-|-------|----------|----|
-| 0 | A → C | 0.90 |
-| 1 | A → D | 0.90 |
-| 2 | B → C | 0.90 |
-| 3 | B → D | 0.91 |
-| 4 | A+B → C | 0.86 |
-| 5 | A+B → D | 0.87 |
-| 6 | 2A → C | 0.99 |
-| 7 | 2A → D | 0.97 |
-| 8 | 2B → C | 1.00 |
-| 9 | 2B → D | 0.99 |
-| 10 | A+B → C → D | 0.94 |
-| 11 | 2A → C → D | 0.93 |
-| 12 | A → C → D | 0.97 |
-| 13 | B → C → D | 0.99 |
-| 14 | A+B→C ; 2A→D | 0.93 |
-| 15 | A→C ; B→D | 0.96 |
-| 16 | 2A→C ; 2B→D | 0.96 |
-| 17 | A+B→C→D ; 2A→D | **0.84** |
-| 18 | 2A→C→D ; A+B→D | **0.84** |
-| 19 | A→C→D ; B→D | 0.95 |
-| 20 | A ⇌ C | 0.90 |
-| 21 | A ⇌ D | 0.91 |
-| 22 | B ⇌ C | 0.90 |
-| 23 | B ⇌ D | 0.91 |
-| 24 | A+B ⇌ C | 0.88 |
-| 25 | A+B ⇌ D | 0.89 |
-| 26 | A → C + D | **1.00** |
-| 27 | B → C + D | **1.00** |
+| Class | Equation | Recall |
+|-------|----------|--------|
+| 0 | A → C | 93.4% |
+| 1 | A → D | 93.6% |
+| 2 | B → C | 92.4% |
+| 3 | B → D | 92.0% |
+| 4 | A+B → C | 84.1% |
+| 5 | A+B → D | 89.2% |
+| 6 | 2A → C | **100.0%** |
+| 7 | 2A → D | 99.0% |
+| 8 | 2B → C | **100.0%** |
+| 9 | 2B → D | **100.0%** |
+| 10 | A+B → C → D | 97.2% |
+| 11 | 2A → C → D | 97.6% |
+| 12 | A → C → D | 97.2% |
+| 13 | B → C → D | 99.0% |
+| 14 | A+B→C ; 2A→D | 94.9% |
+| 15 | A→C ; B→D | 98.4% |
+| 16 | 2A→C ; 2B→D | 98.6% |
+| 17 | A+B→C→D ; 2A→D | 82.3% |
+| 18 | 2A→C→D ; A+B→D | 88.9% |
+| 19 | A→C→D ; B→D | 96.2% |
+| 20 | A ⇌ C | 88.8% |
+| 21 | A ⇌ D | 89.7% |
+| 22 | B ⇌ C | 89.9% |
+| 23 | B ⇌ D | 92.5% |
+| 24 | A+B ⇌ C | 92.5% |
+| 25 | A+B ⇌ D | 89.0% |
+| 26 | A → C + D | **100.0%** |
+| 27 | B → C + D | **100.0%** |
 
-Split-product classes (26–27) achieve perfect F1 — they are uniquely identifiable because both C and D rise simultaneously from a single reactant. Classes 17 and 18 remain the hardest; when the model misses, it places the correct class at rank 2.
+Split-product classes (26–27) and second-order homogeneous classes (6, 8, 9) achieve perfect or near-perfect recall — they produce uniquely distinguishable concentration profiles. Classes 17 and 18 remain the hardest due to overlapping parallel-sequential signatures.
+
+### Noise robustness (ensemble)
+
+Zero-mean Gaussian noise was added at 101 levels (0–50%) to evaluate robustness. Results are in `results/noise_robustness.xlsx`.
+
+| Noise level | Ensemble accuracy |
+|-------------|-------------------|
+| 0% | 93.63% |
+| 5% | 88.81% |
+| 10% | 82.25% |
+| 25% | 54.35% |
+| 50% | 29.78% |
+
+**Most robust classes** (recall >80% past 25% noise): `2A→C`, `2A→D` (survive to 50%), `A→C+D`, `B→C+D`.
+**Most fragile classes**: bimolecular reactions (`A+B→*`) break first, typically below 10% noise.
 
 ---
 

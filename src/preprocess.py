@@ -10,7 +10,7 @@ This module provides:
 import numpy as np
 import json
 from pathlib import Path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict
 from sklearn.model_selection import train_test_split
 
 

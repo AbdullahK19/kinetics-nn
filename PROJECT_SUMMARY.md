@@ -5,7 +5,7 @@
 An end-to-end deep learning pipeline for identifying chemical reaction mechanisms from concentration profiles in PFR and CSTR reactors.
 
 - **28 mechanism classes** — simple, sequential, parallel, parallel-sequential, reversible, and split-product reactions
-- **92.24% validation accuracy** on 14,176 held-out samples
+- **93.63% test accuracy** — 3-model ensemble on 70,994 held-out samples
 - **No Excel required** — Python ODE solver covers all mechanisms
 - **Ranked predictions** with probabilities and configurable threshold
 
@@ -13,13 +13,28 @@ An end-to-end deep learning pipeline for identifying chemical reaction mechanism
 
 ## Final model performance
 
+### Ensemble (3 models averaged)
+
 | | Value |
 |--|-------|
-| Validation accuracy | 92.24% |
-| Test accuracy | 92.21% |
-| Macro avg F1 | 0.93 |
+| **Ensemble test accuracy** | **93.63%** |
+| Model 1 test accuracy (seed 42) | 93.03% |
+| Model 2 test accuracy (seed 123) | 92.91% |
+| Model 3 test accuracy (seed 456) | 93.16% |
 
-Trained on 100,000 ODE-simulated runs (~70,000 train / ~15,000 val / ~15,000 test).
+Trained on 500,000 ODE-simulated runs (331,300 train / 70,993 val / 70,994 test).
+
+### Noise robustness
+
+| Noise level | Ensemble accuracy |
+|-------------|-------------------|
+| 0% | 93.63% |
+| 5% | 88.81% |
+| 10% | 82.25% |
+| 25% | 54.35% |
+| 50% | 29.78% |
+
+Full noise robustness results (0–50% in 0.5% steps, per-class breakdown) are in `results/noise_robustness.xlsx`.
 
 ---
 
@@ -44,9 +59,12 @@ Trained on 100,000 ODE-simulated runs (~70,000 train / ~15,000 val / ~15,000 tes
 | `src/preprocess.py` | z-score scaler, stratified 70/15/15 train/val/test split |
 | `src/model.py` | ResConv1DClassifier (+ CNN, GRU, LSTM alternatives) |
 | `src/train.py` | Training loop: FocalLoss, SWA, TTA, --resume, cosine LR |
-| `src/predict.py` | MechanismPredictor class + CLI |
+| `src/predict.py` | MechanismPredictor class + single-model CLI |
+| `src/ensemble_predict.py` | 3-model ensemble inference CLI |
 | `src/validate_excel.py` | Gallery plots, ODE vs Excel cross-validation (classes 0–2) |
 | `src/excel_driver.py` | Excel integration via xlwings (optional, validation only) |
+| `eval_ensemble.py` | Batch evaluation of ensemble on test set |
+| `noise_robustness.py` | Noise robustness analysis (0–50% Gaussian noise) |
 
 ---
 
@@ -84,11 +102,11 @@ Without constraining the equilibrium constant, a reversible mechanism with Keq >
 | Classes | 5 | 28 |
 | Features | 6 (raw concentrations only) | 16 (+ derivatives, mole fractions, T, P) |
 | Architecture | Plain CNN, 49K params | ResConv1D + SE, 1.275M params |
-| Dataset | 3,000 runs | 100,000 runs |
+| Dataset | 3,000 runs | 500,000 runs |
 | Loss | CrossEntropy | Focal Loss (γ=2.0) |
 | Post-training | None | SWA (20 epochs) |
 | Inference | Single pass | TTA ×5 |
-| Val accuracy | ~83% (1K samples) | **92.24%** |
+| Val accuracy | ~83% (1K samples) | **93.63%** (ensemble) |
 
 ---
 
@@ -110,11 +128,10 @@ Without constraining the equilibrium constant, a reversible mechanism with Keq >
 
 | File | Contents |
 |------|---------|
-| `models/best_model.pt` | SWA-averaged model checkpoint (includes optimizer state) |
-| `models/training_config.json` | All hyperparameters + best_val_acc + architecture spec |
-| `models/classification_report.txt` | Per-class precision/recall/F1 on validation set |
-| `models/test_report.txt` | Per-class results on held-out test set (standard + TTA) |
-| `models/training_curves.png` | Loss and accuracy vs epoch |
-| `models/confusion_matrix.png` | 28×28 confusion matrix on validation set |
+| `models/ensemble_1/best_model.pt` | Model weights — seed 42, best val 92.99% |
+| `models/ensemble_2/best_model.pt` | Model weights — seed 123, best val 92.90% |
+| `models/ensemble_3/best_model.pt` | Model weights — seed 456, best val 92.94% |
+| `models/ensemble_*/training_config.json` | Hyperparameters + architecture spec per model |
 | `data/scaler.json` | 16-feature mean/std for z-score normalisation |
-| `data/split_info.json` | Train/val/test sizes and split parameters |
+| `data/dataset_info.json` | Class names, feature names, dataset statistics |
+| `results/noise_robustness.xlsx` | Noise robustness: accuracy + per-class recall at 101 noise levels |

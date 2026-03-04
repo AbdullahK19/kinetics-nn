@@ -253,7 +253,7 @@ class Trainer:
                 probs /= (n_augments + 1)
                 _, predicted = probs.max(1)
                 all_preds.extend(predicted.cpu().numpy())
-                all_targets.extend(targets.numpy())
+                all_targets.extend(targets.cpu().numpy())
 
         all_preds = np.array(all_preds)
         all_targets = np.array(all_targets)
@@ -390,7 +390,7 @@ class Trainer:
                 outputs = self.model(inputs)
                 _, predicted = outputs.max(1)
                 all_preds.extend(predicted.cpu().numpy())
-                all_targets.extend(targets.numpy())
+                all_targets.extend(targets.cpu().numpy())
 
         all_preds = np.array(all_preds)
         all_targets = np.array(all_targets)
